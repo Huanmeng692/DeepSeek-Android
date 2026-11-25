@@ -1,0 +1,43 @@
+# Gradle / build output
+.gradle/
+.kotlin/
+build/
+**/build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Android Studio / IDE metadata
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Local configuration (SDK path etc.)
+local.properties
+
+# Signing material — never commit
+keystore/
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+
+# Build artifacts / release assets (upload them to GitHub Releases instead)
+dist/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+*.hprof
+
+# Logs and temp files
+*.log
+*.tmp
+*.bak
+.env
+
+# OS junk
+.DS_Store
+Thumbs.db
