@@ -110,6 +110,7 @@ object JsonCodec {
         put("mime", attachment.mime)
         put("size", attachment.size)
         put("isImage", attachment.isImage)
+        put("localOnly", attachment.localOnly)
         attachment.serverId?.let { put("serverId", it) }
         put("uploading", attachment.uploading)
         attachment.error?.let { put("error", it) }
@@ -122,6 +123,7 @@ object JsonCodec {
         mime = json.optString("mime"),
         size = json.optLong("size"),
         isImage = json.optBoolean("isImage"),
+        localOnly = json.optBoolean("localOnly"),
         serverId = json.optString("serverId").takeIf { it.isNotBlank() },
         uploading = json.optBoolean("uploading"),
         error = json.optString("error").takeIf { it.isNotBlank() },

@@ -9,7 +9,8 @@ Jetpack Compose，并参考 [DeepSeek Harness](https://github.com/deepseek-ai/de
 - 用该 Key 直接聊天，无需手动复制粘贴；
 - 查询账户余额；
 - 一键打开官方充值页；
-- 手动填写 API Key 的兼容模式。
+- 手动填写 API Key 的兼容模式；
+- 导入官方网页/App 导出的历史对话 ZIP，并将本机对话导出为同格式 ZIP。
 
 > 本项目不是 DeepSeek 官方客户端，与深度求索公司无隶属关系。请遵守 DeepSeek
 > 开放平台的服务条款。账号托管部分依赖开放平台未公开的前端接口，接口可能随平台更新而变化；
@@ -38,6 +39,10 @@ Jetpack Compose，并参考 [DeepSeek Harness](https://github.com/deepseek-ai/de
 | 外观与语言 | 深色对话 | 启动图标 |
 | --- | --- | --- |
 | ![语言](docs/screenshots/settings-zh-light.png) | ![深色对话](docs/screenshots/chat-dark-error.png) | ![图标](docs/screenshots/splash.png) |
+
+| 历史导入/导出 |
+| --- |
+| ![数据设置](docs/screenshots/settings-data.png) |
 
 ## 功能
 
@@ -131,6 +136,21 @@ app/build/outputs/apk/release/app-release.apk
 > 发布签名与 Debug 签名不同。如果你的手机当前安装的是 Debug APK，要切换到 Release APK 需要先卸载
 > Debug 版（会清除本机聊天记录和加密凭据）；之后登录账号即可重新创建 Key。若没有 `keystore.properties`，
 > `assembleRelease` 会退回生成未签名 APK，便于其他开发者构建。
+
+### 历史导入/导出
+
+设置 → 数据：
+
+- **导入对话历史**：支持官方网页版/新版 App 导出的 `deepseek_data-日期.zip`
+  （`export_format_version: 3`）。导入会合并到本机，同 ID 会话会更新，不删除其他对话。
+- **导出全部对话**：生成同格式的 `deepseek_data-日期.zip`，包含会话、消息树和本地存在的图片原件。
+- 导入按 `current_message_id` 还原当前分支；本应用是线性会话，因此其他分支不会保留。
+- 思考、正文、搜索来源、打开网页、阅读链接、图片和文件元数据会尽量保留；未知片段
+  （TIP、CONTENT_RISK、TOOL_IMAGE_SEARCH 等）会丢弃。
+- 非图片附件只有元数据；缺失原件的图片显示为“仅记录，未包含原件”，不会参与后续上传。
+- 归档不包含 API Key、账号、设置或登录信息。
+- 该格式与 chat-demo / DeepSeek Harness 的官方历史导入格式一致；官方 App/网页当前是否能直接
+  “导入”取决于官方版本，官方导出格式本身已兼容。
 
 ### 首次使用
 
@@ -302,6 +322,15 @@ gradlew.bat :app:connectedDebugAndroidTest
 > 余额和 Key 状态。
 
 ## 更新记录
+
+### 1.0.2
+
+- 新增官方历史对话 ZIP 导入/导出（`export_format_version: 3`）：
+  - 设置 → 数据 → 导入对话历史 / 导出全部对话；
+  - 兼容官方网页版/App 导出格式，以及 chat-demo / DeepSeek Harness 的导入格式；
+  - 支持图片原件、文件元数据、思考、搜索来源、打开网页、阅读链接和当前分支；
+  - 使用系统文件选择器，不需要存储权限；归档不包含账号、Key 或设置。
+- 新增真实官方样例的导入→导出→再导入往返测试（测试夹具不提交）。
 
 ### 1.0.1
 

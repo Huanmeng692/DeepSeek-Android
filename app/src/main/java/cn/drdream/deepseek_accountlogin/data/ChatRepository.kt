@@ -61,4 +61,16 @@ class ChatRepository(private val database: ChatDatabase) {
         database.deleteAll()
         _sessions.value = emptyList()
     }
+
+    /** Merges imported sessions; an existing session with the same official ID is replaced. */
+    fun importSessions(imported: List<ChatSession>): Int {
+        if (imported.isEmpty()) return 0
+        val merged = _sessions.value.associateBy { it.id }.toMutableMap()
+        imported.forEach { session ->
+            database.upsert(session)
+            merged[session.id] = session
+        }
+        _sessions.value = merged.values.sortedByDescending { it.updatedAt }
+        return imported.size
+    }
 }

@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Date
@@ -50,6 +51,9 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
 
     private val _attachmentBusy = MutableStateFlow(false)
     val attachmentBusy: StateFlow<Boolean> = _attachmentBusy.asStateFlow()
+
+    private val _historyBusyLabel = MutableStateFlow<String?>(null)
+    val historyBusyLabel: StateFlow<String?> = _historyBusyLabel.asStateFlow()
 
     private val _composerThinking = MutableStateFlow(settings.value.thinkingByDefault)
     val composerThinking: StateFlow<Boolean> = _composerThinking.asStateFlow()
@@ -128,6 +132,72 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
     fun showToast(message: String) {
         _toast.value = message
     }
+
+    fun importHistory(uri: Uri) {
+        if (_sending.value) {
+            _toast.value = historyText("请先停止当前生成", "Stop the current response first")
+            return
+        }
+        viewModelScope.launch {
+            _historyBusyLabel.value = historyText("正在导入对话…", "Importing history…")
+            try {
+                val result = container.history.importArchive(uri)
+                val count = withContext(Dispatchers.IO) {
+                    container.repo.importSessions(result.sessions)
+                }
+                if (_activeId.value == null) {
+                    _activeId.value = result.sessions.firstOrNull()?.id
+                }
+                val missing = if (result.missingAttachmentCount > 0) {
+                    historyText(
+                        "，其中 ${result.missingAttachmentCount} 个附件仅保留元数据",
+                        "; ${result.missingAttachmentCount} attachments are metadata-only",
+                    )
+                } else {
+                    ""
+                }
+                _toast.value = historyText(
+                    "已导入 $count 个对话$missing",
+                    "Imported $count conversations$missing",
+                )
+            } catch (error: Exception) {
+                _toast.value = historyText(
+                    "导入失败：${error.message ?: "未知错误"}",
+                    "Import failed: ${error.message ?: "Unknown error"}",
+                )
+            } finally {
+                _historyBusyLabel.value = null
+            }
+        }
+    }
+
+    fun exportHistory(uri: Uri) {
+        val snapshot = container.repo.sessions.value
+        if (snapshot.isEmpty()) {
+            _toast.value = historyText("没有可导出的对话", "No conversations to export")
+            return
+        }
+        viewModelScope.launch {
+            _historyBusyLabel.value = historyText("正在导出对话…", "Exporting history…")
+            try {
+                val result = container.history.exportArchive(uri, snapshot)
+                _toast.value = historyText(
+                    "已导出 ${result.sessionCount} 个对话、${result.imageCount} 张图片",
+                    "Exported ${result.sessionCount} conversations and ${result.imageCount} images",
+                )
+            } catch (error: Exception) {
+                _toast.value = historyText(
+                    "导出失败：${error.message ?: "未知错误"}",
+                    "Export failed: ${error.message ?: "Unknown error"}",
+                )
+            } finally {
+                _historyBusyLabel.value = null
+            }
+        }
+    }
+
+    private fun historyText(zh: String, en: String): String =
+        if (container.settings.state.value.language == AppLanguage.ZH) zh else en
 
     fun addAttachments(uris: List<Uri>) {
         if (uris.isEmpty()) return
@@ -333,6 +403,10 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
         if (message.attachments.none { it.serverId.isNullOrBlank() }) return
         val updatedAttachments = ArrayList<Attachment>()
         for (attachment in message.attachments) {
+            if (attachment.localOnly || attachment.path.isBlank()) {
+                updatedAttachments += attachment
+                continue
+            }
             if (!attachment.serverId.isNullOrBlank()) {
                 updatedAttachments += attachment
                 continue

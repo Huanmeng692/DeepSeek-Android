@@ -64,6 +64,8 @@ data class Attachment(
     val mime: String,
     val size: Long,
     val isImage: Boolean,
+    /** True when the archive contains metadata but no original bytes. */
+    val localOnly: Boolean = false,
     val serverId: String? = null,
     val uploading: Boolean = false,
     val error: String? = null,

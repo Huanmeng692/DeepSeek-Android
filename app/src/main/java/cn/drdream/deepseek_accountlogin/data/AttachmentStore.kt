@@ -10,6 +10,7 @@ import cn.drdream.deepseek_accountlogin.data.model.Attachment
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.InputStream
 import java.util.UUID
 
 class AttachmentException(message: String) : Exception(message)
@@ -64,6 +65,45 @@ class AttachmentStore(private val context: Context) {
     }
 
     fun file(attachment: Attachment): File = File(attachment.path)
+
+    /** Copies an original image from an imported official ZIP. */
+    fun importArchiveFile(
+        input: InputStream,
+        name: String,
+        mime: String,
+        isImage: Boolean,
+    ): Attachment {
+        val safeName = name.substringAfterLast('/').substringAfterLast('\\').ifBlank { "attachment" }
+        val directory = File(context.filesDir, "attachments").apply { mkdirs() }
+        val extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(mime)
+            ?: safeName.substringAfterLast('.', "").takeIf { it.isNotBlank() }
+            ?: if (isImage) "img" else "bin"
+        val destination = File(directory, "${UUID.randomUUID()}.$extension")
+        input.use { source ->
+            destination.outputStream().use { output -> source.copyTo(output) }
+        }
+        if (destination.length() == 0L) {
+            destination.delete()
+            throw AttachmentException("归档附件为空")
+        }
+        val resolvedMime = mime.takeIf { it.isNotBlank() }
+            ?: MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
+            ?: if (isImage) "image/*" else "application/octet-stream"
+        return Attachment(
+            id = UUID.randomUUID().toString(),
+            path = destination.absolutePath,
+            name = safeName,
+            mime = resolvedMime,
+            size = destination.length(),
+            isImage = isImage,
+        )
+    }
+
+    fun archiveMime(name: String, isImage: Boolean): String {
+        val extension = name.substringAfterLast('.', "").lowercase()
+        return MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
+            ?: if (isImage) "image/*" else "application/octet-stream"
+    }
 
     fun delete(attachment: Attachment) {
         runCatching { File(attachment.path).delete() }

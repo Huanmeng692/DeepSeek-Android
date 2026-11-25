@@ -1,6 +1,8 @@
 package cn.drdream.deepseek_accountlogin.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -24,11 +26,13 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -59,6 +63,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cn.drdream.deepseek_accountlogin.BuildConfig
 import cn.drdream.deepseek_accountlogin.data.AccountState
 import cn.drdream.deepseek_accountlogin.data.AppLanguage
@@ -73,6 +79,9 @@ import cn.drdream.deepseek_accountlogin.ui.components.bonusText
 import cn.drdream.deepseek_accountlogin.ui.components.formatWallet
 import cn.drdream.deepseek_accountlogin.ui.i18n.LocalStrings
 import cn.drdream.deepseek_accountlogin.ui.theme.LocalDeepSeekColors
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,6 +96,20 @@ fun SettingsScreen(
     val colors = LocalDeepSeekColors.current
     var showSignOut by remember { mutableStateOf(false) }
     var showDeleteAll by remember { mutableStateOf(false) }
+    val historyBusy by viewModel.historyBusyLabel.collectAsStateWithLifecycle()
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) viewModel.importHistory(uri)
+    }
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/zip"),
+    ) { uri ->
+        if (uri != null) viewModel.exportHistory(uri)
+    }
+    val exportName = remember {
+        "deepseek_data-" + SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) + ".zip"
+    }
     BackHandler { onBack() }
 
     Scaffold(
@@ -252,6 +275,36 @@ fun SettingsScreen(
             item { SectionTitle(strings.data) }
             item {
                 CardContainer {
+                    SettingsLinkRow(
+                        leading = Icons.Filled.Download,
+                        title = strings.importHistory,
+                        subtitle = strings.importHistoryDesc,
+                        onClick = {
+                            importLauncher.launch(
+                                arrayOf(
+                                    "application/zip",
+                                    "application/x-zip-compressed",
+                                    "application/octet-stream",
+                                ),
+                            )
+                        },
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 14.dp),
+                        color = colors.divider,
+                        thickness = 0.7.dp,
+                    )
+                    SettingsLinkRow(
+                        leading = Icons.Filled.Upload,
+                        title = strings.exportHistory,
+                        subtitle = strings.exportHistoryDesc,
+                        onClick = { exportLauncher.launch(exportName) },
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 14.dp),
+                        color = colors.divider,
+                        thickness = 0.7.dp,
+                    )
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -409,6 +462,28 @@ fun SettingsScreen(
                 TextButton(onClick = { showDeleteAll = false }) { Text(strings.cancel) }
             },
         )
+    }
+
+    val busy = historyBusy
+    if (busy != null) {
+        Dialog(onDismissRequest = {}) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surface,
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(text = busy, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
     }
 }
 

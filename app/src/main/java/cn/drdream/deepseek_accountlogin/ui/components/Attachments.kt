@@ -36,6 +36,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cn.drdream.deepseek_accountlogin.data.model.Attachment
+import cn.drdream.deepseek_accountlogin.ui.i18n.LocalStrings
 import cn.drdream.deepseek_accountlogin.ui.theme.LocalDeepSeekColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -49,6 +50,10 @@ fun AttachmentPreview(
     showName: Boolean = true,
 ) {
     val colors = LocalDeepSeekColors.current
+    val strings = LocalStrings.current
+    val hasFile = !attachment.localOnly &&
+        attachment.path.isNotBlank() &&
+        File(attachment.path).isFile
     if (attachment.isImage) {
         Box(
             modifier = modifier
@@ -56,8 +61,12 @@ fun AttachmentPreview(
                 .heightIn(max = 260.dp)
                 .clip(RoundedCornerShape(14.dp)),
         ) {
-            val bitmap by produceState<Bitmap?>(null, attachment.path) {
-                value = withContext(Dispatchers.IO) { decodeSampled(attachment.path, 1400) }
+            val bitmap by produceState<Bitmap?>(null, attachment.path, hasFile) {
+                value = if (hasFile) {
+                    withContext(Dispatchers.IO) { decodeSampled(attachment.path, 1400) }
+                } else {
+                    null
+                }
             }
             val current = bitmap
             if (current != null) {
@@ -71,15 +80,41 @@ fun AttachmentPreview(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 120.dp)
+                        .heightIn(min = 90.dp)
                         .background(colors.thinkingBackground),
                     contentAlignment = Alignment.Center,
                 ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
+                    if (!hasFile) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(12.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Description,
+                                contentDescription = null,
+                                tint = colors.mutedText,
+                                modifier = Modifier.size(22.dp),
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = attachment.name,
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                text = strings.attachmentMetadataOnly,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = colors.mutedText,
+                            )
+                        }
+                    } else {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                 }
             }
             if (attachment.uploading) {
@@ -107,7 +142,7 @@ fun AttachmentPreview(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Close,
-                        contentDescription = "Remove",
+                        contentDescription = strings.remove,
                         tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(15.dp),
                     )
@@ -141,10 +176,10 @@ fun AttachmentPreview(
                         )
                     }
                     Text(
-                        text = if (attachment.uploading) {
-                            "上传中 · ${formatBytes(attachment.size)}"
-                        } else {
-                            formatBytes(attachment.size)
+                        text = when {
+                            attachment.localOnly -> strings.attachmentMetadataOnly
+                            attachment.uploading -> "上传中 · ${formatBytes(attachment.size)}"
+                            else -> formatBytes(attachment.size)
                         },
                         style = MaterialTheme.typography.labelSmall,
                         color = colors.mutedText,

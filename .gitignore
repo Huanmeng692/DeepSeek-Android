@@ -38,6 +38,9 @@ dist/
 *.bak
 .env
 
+# Local chat exports / test fixtures
+*.zip
+
 # OS junk
 .DS_Store
 Thumbs.db
